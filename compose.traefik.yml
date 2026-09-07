@@ -1,0 +1,44 @@
+services:
+  prolog:
+    ports: !override []
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  backend:
+    ports: !override []
+    expose:
+      - "8000"
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.stitchcraft-api.rule=Host(`${STITCHCRAFT_API_HOST:?Set STITCHCRAFT_API_HOST}`)"
+      - "traefik.http.routers.stitchcraft-api.entrypoints=websecure"
+      - "traefik.http.routers.stitchcraft-api.tls.certresolver=le"
+      - "traefik.http.services.stitchcraft-api.loadbalancer.server.port=8000"
+
+  frontend:
+    ports: !override []
+    expose:
+      - "80"
+    restart: unless-stopped
+    environment:
+      PUBLIC_API_URL: "${PUBLIC_API_URL:?Set PUBLIC_API_URL to the public backend URL}"
+    networks:
+      - default
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.stitchcraft.rule=Host(`${STITCHCRAFT_HOST:?Set STITCHCRAFT_HOST}`)"
+      - "traefik.http.routers.stitchcraft.entrypoints=websecure"
+      - "traefik.http.routers.stitchcraft.tls.certresolver=le"
+      - "traefik.http.services.stitchcraft.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true

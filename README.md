@@ -30,6 +30,15 @@ Production-сборка интерфейса с nginx:
 docker compose -f compose.yml -f compose.prod.yml up --build
 ```
 
+Для VPS с Traefik используйте отдельную конфигурацию. Она подключает frontend и API к внешней сети `proxy`, добавляет HTTPS-маршруты и отключает host-порты:
+
+```bash
+docker network create proxy  # один раз
+docker compose -f compose.yml -f compose.prod.yml -f compose.traefik.yml up -d --build
+```
+
+В `.env` укажите `STITCHCRAFT_HOST`, `STITCHCRAFT_API_HOST` и публичный `PUBLIC_API_URL` для backend.
+
 ## Рабочий сценарий
 
 1. Откройте интерфейс и выберите PNG, JPEG или WebP.
