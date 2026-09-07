@@ -8,7 +8,7 @@
 
 ```bash
 git clone <адрес-репозитория>
-cd SummerTask
+cd <название-репозитория>
 docker compose up --build
 ```
 
