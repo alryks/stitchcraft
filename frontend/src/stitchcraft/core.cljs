@@ -12,7 +12,7 @@
    [:svg {:viewBox "0 0 42 42" :aria-hidden true}
     [:path {:d "M5 5h14v14H5zM23 5h14v14H23zM5 23h14v14H5z"}]
     [:path.accent {:d "M23 23h14v14H23zM25 25l10 10m0-10L25 35"}]]
-   [:div [:strong "Нить"] [:span "Конструктор схем"]]])
+   [:div [:strong "Вышивка крестиком"] [:span "Конструктор схем"]]])
 
 (defn panel-toggle [key label]
   (let [open? (get @state/app-state key)]
@@ -76,6 +76,7 @@
 (defn options-panel []
   (let [options (:options @state/app-state)]
     [:aside.settings
+     [:div.settings-brand [logo]]
      [:div.panel-local-header [:span "Параметры"] [panel-toggle :left-panel-open "Параметры"]]
      [upload-card]
      [:section.control-group
@@ -253,7 +254,6 @@
 (defn app []
   (let [pattern (:pattern @state/app-state)]
     [:div.app-shell
-     [:header.topbar [logo]]
      (if pattern
        [workspace pattern]
        [:<>
