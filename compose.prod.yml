@@ -15,7 +15,7 @@ services:
       - "${FRONTEND_PORT:-3000}:80"
     volumes: !override []
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/"]
 
   prolog:
     volumes: !override []
