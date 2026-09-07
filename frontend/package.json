@@ -1,0 +1,18 @@
+{
+  "name": "stitchcraft-frontend",
+  "private": true,
+  "scripts": {
+    "dev": "shadow-cljs watch app",
+    "build": "shadow-cljs release app",
+    "test": "shadow-cljs compile app"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "5.1.1",
+    "@fontsource/manrope": "5.1.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "shadow-cljs": "2.28.20"
+  },
+  "devDependencies": {}
+}
+

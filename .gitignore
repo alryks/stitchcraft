@@ -1,0 +1,12 @@
+.DS_Store
+.env
+__pycache__/
+.pytest_cache/
+*.py[cod]
+frontend/node_modules/
+frontend/public/js/
+frontend/public/fonts/
+frontend/.shadow-cljs/
+exports/
+.clj-kondo/
+.lsp/

@@ -1,0 +1,58 @@
+name: stitchcraft
+
+services:
+  prolog:
+    build: ./prolog
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - ./prolog:/app
+
+  backend:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      PROLOG_URL: ${PROLOG_URL:-http://prolog:8080}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-12}
+      PALETTES_DIR: /palettes
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - ./palettes:/palettes:ro
+    depends_on:
+      prolog:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  frontend:
+    image: stitchcraft-frontend-dev
+    build:
+      context: ./frontend
+      target: development
+    command: /app/dev.sh
+    environment:
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+      - "9630:9630"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
