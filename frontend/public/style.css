@@ -217,12 +217,6 @@ summary:focus-visible {
 .workspace.right-hidden .inspector {
   display: none;
 }
-.workspace.left-hidden .pattern-stage {
-  padding-left: var(--panel-edge-size);
-}
-.workspace.right-hidden .pattern-stage {
-  padding-right: var(--panel-edge-size);
-}
 .settings,
 .inspector {
   background: var(--panel);
@@ -492,6 +486,12 @@ summary:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.workspace.left-hidden .canvas-toolbar {
+  padding-left: calc(16px + var(--panel-edge-size));
+}
+.workspace.right-hidden .canvas-toolbar {
+  padding-right: calc(16px + var(--panel-edge-size));
 }
 .canvas-toolbar > div:first-child {
   display: flex;
