@@ -732,6 +732,91 @@ summary:focus-visible {
 .color-list {
   padding: 11px;
 }
+.stitch-legend {
+  margin: -2px -2px 12px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid #dbe1e4;
+}
+.stitch-legend summary {
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  list-style-position: outside;
+  padding: 3px 0;
+}
+.legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 9px;
+}
+.legend-row {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.legend-mark {
+  width: 24px;
+  height: 24px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #b7c3ca;
+  background: #e0e7ea;
+  color: var(--ink);
+  font: 10px var(--mono);
+}
+.legend-mark.half-forward {
+  background: linear-gradient(135deg, #d4dfe4 0 50%, transparent 50%);
+}
+.legend-mark.half-backward {
+  background: linear-gradient(45deg, #d4dfe4 0 50%, transparent 50%);
+}
+.legend-mark.blend::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, transparent 46%, var(--blue) 47% 53%, transparent 54%);
+}
+.legend-mark.backstitch {
+  background: transparent;
+  border-color: transparent;
+}
+.legend-mark.backstitch::before,
+.legend-mark.route::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  top: 10px;
+  height: 3px;
+  transform: rotate(-25deg);
+  background: var(--ink);
+}
+.legend-mark.route {
+  background: transparent;
+  border-color: transparent;
+}
+.legend-mark.route::before {
+  background: var(--thread);
+  height: 4px;
+  transform: rotate(18deg);
+}
+.legend-mark.selection {
+  background: rgba(237, 47, 104, 0.12);
+  border: 2px solid var(--thread);
+}
+.legend-divider {
+  height: 1px;
+  margin: 3px 0 1px;
+  background: #edf0f1;
+}
 .inspector > .color-list {
   flex: 1;
   min-height: 0;

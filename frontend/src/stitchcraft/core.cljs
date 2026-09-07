@@ -156,6 +156,31 @@
   (let [{:keys [hidden-colors selected-color]} @state/app-state
         counts (frequencies (map :primary_color (:stitches pattern)))]
     [:div.color-list
+     [:details.stitch-legend {:open true}
+      [:summary "Как читать схему"]
+      [:div.legend-list
+       [:div.legend-row
+        [:span.legend-mark.full "A"]
+        [:span "Полный крест. Буква или знак внутри клетки обозначает цвет нити."]]
+       [:div.legend-row
+        [:span.legend-mark.half-forward]
+        [:span "Полукрест ↘"]]
+       [:div.legend-row
+        [:span.legend-mark.half-backward]
+        [:span "Полукрест ↗"]]
+       [:div.legend-row
+        [:span.legend-mark.blend]
+        [:span "Смешанный крест: второй цвет проходит по диагонали."]]
+       [:div.legend-row
+        [:span.legend-mark.backstitch]
+        [:span "Шов назад иголку. Появляется, если он включён в параметрах."]]
+       [:div.legend-divider]
+       [:div.legend-row
+        [:span.legend-mark.route]
+        [:span "Розовая линия — маршрут иглы."]]
+       [:div.legend-row
+        [:span.legend-mark.selection]
+        [:span "Красный контур — выбранный участок схемы."]]]]
      (for [color (:colors pattern)]
        (let [id (:id color) hidden? (contains? hidden-colors id)]
          ^{:key id}
