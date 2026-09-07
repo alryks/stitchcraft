@@ -8,3 +8,5 @@ frontend/public/js/
 frontend/public/fonts/
 frontend/.shadow-cljs/
 exports/
+.clj-kondo/
+.lsp/
