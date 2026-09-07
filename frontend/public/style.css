@@ -450,19 +450,13 @@ summary:focus-visible {
 }
 .canvas-toolbar {
   height: 54px;
-  padding: 0 16px;
+  padding: 0 calc(16px + var(--panel-edge-size));
   background: #f7f8f5;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-.workspace.left-hidden .canvas-toolbar {
-  padding-left: calc(16px + var(--panel-edge-size));
-}
-.workspace.right-hidden .canvas-toolbar {
-  padding-right: calc(16px + var(--panel-edge-size));
 }
 .canvas-toolbar > div:first-child {
   display: flex;
@@ -916,7 +910,7 @@ summary:focus-visible {
   .canvas-toolbar {
     flex-wrap: wrap;
     height: auto;
-    padding: 10px;
+    padding: 10px var(--panel-edge-size);
   }
   .zoom-control > span {
     display: none;
