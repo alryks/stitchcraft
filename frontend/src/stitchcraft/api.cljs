@@ -1,6 +1,8 @@
 (ns stitchcraft.api
   (:require [stitchcraft.state :as state]))
 
+(declare plan!)
+
 (defn base-url []
   (or (some-> js/window .-STITCHCRAFT_CONFIG .-apiUrl) "http://localhost:8000"))
 
@@ -27,7 +29,7 @@
                      (state/set-state! :selected-region nil)
                      (state/set-state! :selected-color nil)
                      (state/set-state! :route-step 99999)
-                     (state/set-state! :status :ready)))
+                     (plan!)))
             (.catch (fn [error]
                       (state/set-state! :error (.-message error))
                       (state/set-state! :status :idle))))))))

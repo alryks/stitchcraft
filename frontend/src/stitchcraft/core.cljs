@@ -111,7 +111,7 @@
         [:option {:value "navy"} "Тёмно-синяя"]
         [:option {:value "pale-blue"} "Бледно-голубая"]]]
       [:div.toggle-stack [toggle :blends "Смешанные цвета"] [toggle :half_cross "Полукрест на границах"] [toggle :backstitch "Шов назад иголку"]]
-      [:p.option-hint "Печатная схема использует этот переключатель — выключите его перед открытием, если backstitch не нужен."]
+      [:p.option-hint "Печатная схема использует этот переключатель — выключите его перед открытием, если шов назад иголку не нужен."]
       [:details.advanced
        [:summary "Расход и очистка"]
        [:div.two-fields
@@ -149,7 +149,7 @@
      [:div.toolbar-actions
       [:label.zoom-control [:span "Масштаб"] [:input {:type "range" :min 0.15 :max 2.5 :step 0.05 :value zoom
                                                        :on-change #(state/set-state! :zoom (js/Number (.. % -target -value)))}] [:b (str (js/Math.round (* zoom 100)) "%")]]
-      [:button.icon-button {:class (when show-backstitch "active") :title "Показать backstitch"
+      [:button.icon-button {:class (when show-backstitch "active") :title "Показать шов назад иголку"
                             :on-click #(state/set-state! :show-backstitch (not show-backstitch))} "⌁"]]]))
 
 (defn color-list [pattern]
@@ -186,7 +186,7 @@
         max-steps (reduce + 0 (map #(count (:route %)) (:segments plan)))
         step (:route-step @state/app-state)]
     [:div.panel-content
-     [:div.panel-heading [:h3 "Маршрут иглы"] [:span (or region-id "Выберите клетку")]]
+     [:div.panel-heading [:h3 "Маршрут иглы"]]
      (if plan
        [:<>
         [:div.route-method [:span "Метод"] [:strong (case (:method plan) "danish" "Датский" "english" "Английский" "mixed" "Смешанный" (:method plan))]]
@@ -202,11 +202,9 @@
            ^{:key index} [:div [:b (str "Отрезок " (inc index))] [:span (str (count (:stitches segment)) " ст. · " (:length_mm segment) " мм")]])]]
        [:div.route-empty
         [:p (cond
+              (= :planning (:status @state/app-state)) "Маршруты рассчитываются…"
               (nil? region-id) "Нажмите на клетку схемы, чтобы выбрать участок и посмотреть его маршрут."
-              (seq (:plans pattern)) "Для выбранного участка маршрут ещё не рассчитан."
-              :else "Prolog выберет метод и разделит участки по длине нити.")]
-        [:button.secondary-action {:on-click api/plan! :disabled (= :planning (:status @state/app-state))}
-         (if (= :planning (:status @state/app-state)) "Планирую…" "Рассчитать все маршруты")]])]))
+              :else "Для выбранного участка маршрут ещё не рассчитан.")]])]))
 
 (defn inspector [pattern]
   (let [panel (:panel @state/app-state)
