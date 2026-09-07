@@ -185,7 +185,7 @@
         plan (get (:plans pattern) region-id)
         max-steps (reduce + 0 (map #(count (:route %)) (:segments plan)))
         step (:route-step @state/app-state)]
-    [:div.panel-content
+    [:div.panel-content.route-content
      [:div.panel-heading [:h3 "Маршрут иглы"]]
      (if plan
        [:<>

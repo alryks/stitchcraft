@@ -621,6 +621,27 @@ summary:focus-visible {
   flex: 1;
   min-height: 0;
 }
+.route-content .panel-heading {
+  margin: 0 0 5px;
+}
+.route-content .route-method {
+  padding: 9px 0;
+}
+.route-content .route-empty {
+  padding: 6px 0;
+}
+.route-content .step-control {
+  margin: 10px 0;
+}
+.route-content .route-stats div {
+  padding: 8px 5px;
+}
+.route-content .segment-list {
+  margin-top: 8px;
+}
+.route-content .segment-list > div {
+  padding: 5px 0;
+}
 .material-hero {
   display: flex;
   gap: 12px;
