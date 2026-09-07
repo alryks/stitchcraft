@@ -51,9 +51,23 @@
       [:div.segmented
        [:button {:class (when (= "stitches" (:size_unit options)) "active") :on-click #(state/set-option! :size_unit "stitches")} "Крестики"]
        [:button {:class (when (= "cm" (:size_unit options)) "active") :on-click #(state/set-option! :size_unit "cm")} "Сантиметры"]]
+      [field "Опорная сторона"
+       [:select {:value (:size_axis options)
+                 :on-change (fn [event]
+                              (let [axis (.. event -target -value)]
+                                (state/set-option! :size_axis axis)
+                                (when (= "stitches" (:size_unit options))
+                                  (let [current (or (:width options) (:height options) 72)]
+                                    (state/set-option! :width (when (= axis "width") current))
+                                    (state/set-option! :height (when (= axis "height") current))))))}
+        [:option {:value "width"} "Ширина"]
+        [:option {:value "height"} "Высота"]]]
       (if (= "stitches" (:size_unit options))
-        [field "Ширина" [number-input :width {:min 8 :max 220 :step 1}] "Высота сохранит пропорции"]
-        [field "Ширина вышивки" [number-input :physical_size {:min 2 :max 100 :step 1}] "см"])
+        [field (if (= "width" (:size_axis options)) "Ширина" "Высота")
+         [number-input (if (= "width" (:size_axis options)) :width :height) {:min 8 :max 220 :step 1}]
+         "Вторая сторона сохранит пропорции"]
+        [field (if (= "width" (:size_axis options)) "Ширина вышивки" "Высота вышивки")
+         [number-input :physical_size {:min 2 :max 100 :step 1}] "см"])
       [:div.two-fields
        [field "Канва" [:select {:value (:canvas_count options) :on-change #(state/set-option! :canvas_count (js/Number (.. % -target -value)))}
                          (for [count [11 14 16 18]] ^{:key count} [:option {:value count} (str "Aida " count)])]]
@@ -62,6 +76,16 @@
       [:h2 "Нити и стежки"]
       [field "Палитра" [:select {:value (:palette options) :on-change #(state/set-option! :palette (.. % -target -value))}
                          [:option {:value "dmc"} "DMC"] [:option {:value "anchor"} "Anchor"]]]
+      [field "Цвет канвы"
+       [:select {:value (or (:canvas_color options) "")
+                 :on-change #(let [value (.. % -target -value)] (state/set-option! :canvas_color (when-not (= value "") value)))}
+        [:option {:value ""} "Подобрать автоматически"]
+        [:option {:value "white"} "Белая"]
+        [:option {:value "antique-white"} "Античная белая"]
+        [:option {:value "natural"} "Натуральный лён"]
+        [:option {:value "black"} "Чёрная"]
+        [:option {:value "navy"} "Тёмно-синяя"]
+        [:option {:value "pale-blue"} "Бледно-голубая"]]]
       [:div.toggle-stack [toggle :blends "Смешанные цвета"] [toggle :half_cross "Полукрест на границах"] [toggle :backstitch "Шов назад иголку"]]
       [:details.advanced
        [:summary "Расход и очистка"]
