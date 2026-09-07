@@ -45,18 +45,32 @@
             :on-change #(state/set-option! key (.. % -target -checked))}]
    [:span.switch] [:span label]])
 
+(defn set-upload-file! [next-file]
+  (when next-file
+    (when-let [old-preview (:preview @state/app-state)]
+      (js/URL.revokeObjectURL old-preview))
+    (swap! state/app-state assoc
+           :file next-file
+           :preview (js/URL.createObjectURL next-file)
+           :error nil
+           :drag-over false)))
+
 (defn upload-card []
-  (let [{:keys [preview file]} @state/app-state]
-    [:div.upload-card {:class (when preview "has-preview")}
+  (let [{:keys [preview file drag-over]} @state/app-state]
+    [:div.upload-card {:class (str (when preview "has-preview ") (when drag-over "drag-over"))
+                       :on-drag-over (fn [event]
+                                       (.preventDefault event)
+                                       (state/set-state! :drag-over true))
+                       :on-drag-leave #(state/set-state! :drag-over false)
+                       :on-drop (fn [event]
+                                  (.preventDefault event)
+                                  (set-upload-file! (aget (.. event -dataTransfer -files) 0)))}
      (if preview
        [:img {:src preview :alt "Исходное изображение"}]
        [:div.upload-empty [:span.thread-loop "×"] [:strong "Перетащите изображение"] [:span "или выберите файл до 12 МБ"]])
      [:label.upload-action
       [:input {:type "file" :accept "image/png,image/jpeg,image/webp"
-               :on-change (fn [event]
-                            (when-let [next-file (aget (.. event -target -files) 0)]
-                              (when preview (js/URL.revokeObjectURL preview))
-                              (swap! state/app-state assoc :file next-file :preview (js/URL.createObjectURL next-file) :error nil)))}]
+               :on-change #(set-upload-file! (aget (.. % -target -files) 0))}]
       (if file "Заменить изображение" "Выбрать изображение")]]))
 
 (defn options-panel []
@@ -105,6 +119,7 @@
         [:option {:value "navy"} "Тёмно-синяя"]
         [:option {:value "pale-blue"} "Бледно-голубая"]]]
       [:div.toggle-stack [toggle :blends "Смешанные цвета"] [toggle :half_cross "Полукрест на границах"] [toggle :backstitch "Шов назад иголку"]]
+      [:p.option-hint "Печатная схема использует этот переключатель — выключите его перед открытием, если backstitch не нужен."]
       [:details.advanced
        [:summary "Расход и очистка"]
        [:div.two-fields
@@ -202,7 +217,8 @@
          (if (= :planning (:status @state/app-state)) "Планирую…" "Рассчитать все маршруты")]])]))
 
 (defn inspector [pattern]
-  (let [panel (:panel @state/app-state)]
+  (let [panel (:panel @state/app-state)
+        backstitch? (true? (get-in @state/app-state [:options :backstitch]))]
     [:aside.inspector
      [:div.panel-local-header [:span "Инспектор"] [panel-toggle :right-panel-open "Инспектор"]]
      [:div.panel-tabs
@@ -211,7 +227,7 @@
       [:button {:class (when (= panel :route) "active") :on-click #(state/set-state! :panel :route)} "Маршрут"]]
      (case panel :colors [color-list pattern] :route [route-panel pattern] [materials-panel pattern])
      [:div.export-actions
-      [:a.secondary-action {:href (api/export-url (:id pattern)) :target "_blank" :rel "noreferrer"} "Открыть печатную схему"]
+      [:a.secondary-action {:href (api/export-url (:id pattern) backstitch?) :target "_blank" :rel "noreferrer"} "Открыть печатную схему"]
       (when-let [region (:selected-region @state/app-state)]
         [:a.text-link {:href (api/facts-url (:id pattern) region) :target "_blank" :rel "noreferrer"} "Факты Prolog участка"])] ]))
 

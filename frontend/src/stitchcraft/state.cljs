@@ -9,7 +9,7 @@
 
 (defonce app-state
   (r/atom {:options defaults :file nil :preview nil :pattern nil :status :idle :error nil
-           :zoom 1.0 :hidden-colors #{} :selected-color nil :selected-region nil
+           :zoom 1.0 :hidden-colors #{} :selected-color nil :selected-region nil :drag-over false
            :route-step 99999 :show-backstitch true :panel :materials
            :left-panel-open true :right-panel-open true}))
 

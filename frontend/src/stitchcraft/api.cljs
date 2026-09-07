@@ -50,5 +50,6 @@
                   (state/set-state! :error (.-message error))
                   (state/set-state! :status :ready))))))
 
-(defn export-url [pattern-id] (str (base-url) "/patterns/" pattern-id "/export"))
+(defn export-url [pattern-id backstitch?]
+  (str (base-url) "/patterns/" pattern-id "/export?backstitch=" (if backstitch? "1" "0")))
 (defn facts-url [pattern-id region-id] (str (base-url) "/patterns/" pattern-id "/regions/" region-id "/facts"))

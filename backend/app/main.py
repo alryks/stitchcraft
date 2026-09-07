@@ -132,9 +132,10 @@ async def region_facts(pattern_id: str, region_id: str):
 
 
 @app.get("/patterns/{pattern_id}/export", response_class=HTMLResponse)
-async def export_pattern(pattern_id: str):
+async def export_pattern(pattern_id: str, backstitch: bool | None = None):
     pattern = store.get(pattern_id)
     if not pattern:
         raise HTTPException(404, "Схема не найдена")
+    if backstitch is not None:
+        pattern = {**pattern, "options": {**pattern.get("options", {}), "backstitch": backstitch}}
     return HTMLResponse(printable_html(pattern), headers={"Content-Disposition": f'inline; filename="pattern-{pattern_id}.html"'})
-

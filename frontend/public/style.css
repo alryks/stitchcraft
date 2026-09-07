@@ -243,6 +243,10 @@ summary:focus-visible {
   display: grid;
   place-items: center;
 }
+.upload-card.drag-over {
+  border-color: var(--thread);
+  background: #eef3f4;
+}
 .upload-card img {
   width: 100%;
   height: 100%;
@@ -254,7 +258,8 @@ summary:focus-visible {
   flex-direction: column;
   align-items: center;
   color: var(--muted);
-  gap: 3px;
+  gap: 8px;
+  padding-bottom: 24px;
 }
 .upload-empty strong {
   color: var(--ink);
@@ -351,6 +356,13 @@ summary:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 11px;
+  margin-top: 18px;
+}
+.option-hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
 }
 .toggle {
   display: flex;
