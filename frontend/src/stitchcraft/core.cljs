@@ -156,7 +156,7 @@
   (let [{:keys [hidden-colors selected-color]} @state/app-state
         counts (frequencies (map :primary_color (:stitches pattern)))]
     [:div.color-list
-     [:details.stitch-legend {:open true}
+     [:details.stitch-legend
       [:summary "Как читать схему"]
       [:div.legend-list
        [:div.legend-row
