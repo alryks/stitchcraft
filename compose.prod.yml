@@ -1,0 +1,16 @@
+services:
+  backend:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./palettes:/palettes:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    command: []
+    environment: {}
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    volumes: []
+
