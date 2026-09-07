@@ -14,22 +14,13 @@
     [:path.accent {:d "M23 23h14v14H23zM25 25l10 10m0-10L25 35"}]]
    [:div [:strong "Вышивка крестиком"] [:span "Конструктор схем"]]])
 
-(defn panel-toggle [key label]
-  (let [open? (get @state/app-state key)]
-    [:button.panel-toggle {:class (when open? "active")
-                           :aria-label (str (if open? "Скрыть " "Показать ") label)
-                           :aria-pressed open?
-                           :title (str (if open? "Скрыть " "Показать ") label)
-                           :on-click #(state/set-state! key (not open?))}
-     [:span.panel-toggle-mark (if open? "−" "+")]
-     [:span label]]))
-
-(defn panel-edge [key side label]
+(defn panel-edge [key side label open?]
   [:button.panel-edge {:class side
-                       :aria-label (str "Показать " label)
-                       :title (str "Показать " label)
-                       :on-click #(state/set-state! key true)}
-   (if (= side "left") "›" "‹")])
+                       :aria-label (str (if open? "Скрыть " "Показать ") label)
+                       :aria-pressed open?
+                       :title (str (if open? "Скрыть " "Показать ") label)
+                       :on-click #(state/set-state! key (not open?))}
+   (if open? "−" (if (= side "left") "›" "‹"))])
 
 (defn field [label child & [hint]]
   [:label.field [:span label] child (when hint [:small hint])])
@@ -77,7 +68,7 @@
   (let [options (:options @state/app-state)]
     [:aside.settings
      [:div.settings-brand [logo]]
-     [:div.panel-local-header [:span "Параметры"] [panel-toggle :left-panel-open "Параметры"]]
+     [:div.panel-local-header [:span "Параметры"]]
      [upload-card]
      [:section.control-group
       [:h2 "Размер схемы"]
@@ -221,7 +212,7 @@
   (let [panel (:panel @state/app-state)
         backstitch? (true? (get-in @state/app-state [:options :backstitch]))]
     [:aside.inspector
-     [:div.panel-local-header [:span "Инспектор"] [panel-toggle :right-panel-open "Инспектор"]]
+     [:div.panel-local-header [:span "Инспектор"]]
      [:div.panel-tabs
       [:button {:class (when (= panel :materials) "active") :on-click #(state/set-state! :panel :materials)} "Материалы"]
       [:button {:class (when (= panel :colors) "active") :on-click #(state/set-state! :panel :colors)} "Цвета"]
@@ -239,17 +230,16 @@
 
 (defn panel-edges []
   (let [{:keys [left-panel-open right-panel-open]} @state/app-state]
-    [:<>
-     (when-not left-panel-open [panel-edge :left-panel-open "left" "Параметры"])
-     (when-not right-panel-open [panel-edge :right-panel-open "right" "Инспектор"])]))
+    [:div.panel-edges
+     [panel-edge :left-panel-open "left" "Параметры" left-panel-open]
+     [panel-edge :right-panel-open "right" "Инспектор" right-panel-open]]))
 
 (defn workspace [pattern]
   [:<>
    [:main {:class (workspace-class)}
     [options-panel]
-    [:section.pattern-stage [canvas-toolbar pattern] [pattern-canvas/pattern-canvas] [metric-strip pattern]]
-    [inspector pattern]]
-   [panel-edges]])
+    [:section.pattern-stage [panel-edges] [canvas-toolbar pattern] [pattern-canvas/pattern-canvas] [metric-strip pattern]]
+    [inspector pattern]]])
 
 (defn app []
   (let [pattern (:pattern @state/app-state)]
@@ -259,16 +249,15 @@
        [:<>
         [:main {:class (workspace-class)}
          [options-panel]
-         [:section.pattern-stage [empty-workspace]]
+         [:section.pattern-stage [panel-edges] [empty-workspace]]
          [:aside.inspector.intro-panel
-          [:div.panel-local-header [:span "Инспектор"] [panel-toggle :right-panel-open "Инспектор"]]
+          [:div.panel-local-header [:span "Инспектор"]]
           [:h2 "Рабочий порядок"]
           [:ol
            [:li "Настройте размер и палитру"]
            [:li "Создайте схему"]
            [:li "Оптимизируйте маршрут"]
-           [:li "Распечатайте результат"]]]]
-        [panel-edges]])]))
+           [:li "Распечатайте результат"]]]]])]))
 
 (defn ^:dev/after-load reload! []
   (when @root (.render @root (r/as-element [app]))))
