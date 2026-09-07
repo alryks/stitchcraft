@@ -62,7 +62,9 @@ def build_regions(stitches: list[dict], width: int, height: int) -> list[dict]:
     by_key: dict[tuple, set[tuple[int, int]]] = {}
     stitch_at = {}
     for stitch in stitches:
-        key = (stitch["primary_color"], stitch.get("secondary_color"), stitch["stitch_type"])
+        # A region follows the thread combination. Full and half crosses can be
+        # stitched in one pass, so splitting them creates artificial confetti.
+        key = (stitch["primary_color"], stitch.get("secondary_color"))
         point = (stitch["x"], stitch["y"])
         by_key.setdefault(key, set()).add(point)
         stitch_at[point] = stitch
@@ -83,9 +85,10 @@ def build_regions(stitches: list[dict], width: int, height: int) -> list[dict]:
                 stitch_at[point]["region_id"] = region_id
                 members.append(stitch_at[point]["id"])
             xs, ys = zip(*points)
+            stitch_types = {stitch_at[point]["stitch_type"] for point in points}
             regions.append({"id": region_id, "color": key[0], "secondary_color": key[1],
-                            "stitch_type": key[2], "stitches": members,
+                            "stitch_type": next(iter(stitch_types)) if len(stitch_types) == 1 else "mixed",
+                            "stitches": members,
                             "bounding_box": {"x": min(xs), "y": min(ys),
                                              "width": max(xs)-min(xs)+1, "height": max(ys)-min(ys)+1}})
     return regions
-

@@ -14,7 +14,7 @@ from .color import apply_blends, delta_e, match_palette, rgb_to_lab
 from .materials import calculate_materials, select_canvas
 from .models import PatternOptions
 from .palettes import load_palette
-from .regions import build_regions, reduce_confetti
+from .regions import build_regions, components, reduce_confetti
 
 SYMBOLS = list("●◆■▲✦✚✖◇□△○⊕⊗♠♣♥☀☂☘☯") + list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
@@ -96,6 +96,18 @@ def generate_pattern(data: bytes, options: PatternOptions) -> dict:
     secondary = np.full(indices.shape, -1, dtype=np.int16)
     if options.blends:
         secondary, errors = apply_blends(original_lab, indices, errors, palette)
+        blend_keys = indices * (len(palette) + 1) + secondary + 1
+        for part in components(blend_keys):
+            x, y = part[0]
+            if secondary[y, x] >= 0 and len(part) < options.min_component_size:
+                for px, py in part:
+                    secondary[py, px] = -1
+        errors = delta_e(original_lab, palette_labs[indices])
+        blended = secondary >= 0
+        if np.any(blended):
+            blend_rgb = (np.asarray([palette[idx]["rgb"] for idx in indices[blended]], dtype=np.float32)
+                         + np.asarray([palette[idx]["rgb"] for idx in secondary[blended]], dtype=np.float32)) / 2
+            errors[blended] = delta_e(original_lab[blended], rgb_to_lab(blend_rgb))
 
     used_indices = sorted(set(indices.ravel().tolist()) | {int(v) for v in secondary.ravel() if v >= 0})
     symbols = {idx: SYMBOLS[pos % len(SYMBOLS)] for pos, idx in enumerate(used_indices)}
@@ -117,7 +129,8 @@ def generate_pattern(data: bytes, options: PatternOptions) -> dict:
             })
     regions = build_regions(stitches, width, height)
     used_colors = [{**palette[idx], "symbol": symbols[idx]} for idx in used_indices]
-    canvas = select_canvas(prepared.mean(axis=(0, 1)).tolist(), [c["rgb"] for c in used_colors], options.canvas_color)
+    border = np.concatenate((prepared[0], prepared[-1], prepared[1:-1, 0], prepared[1:-1, -1]))
+    canvas = select_canvas(np.median(border, axis=0).tolist(), options.canvas_color)
     lookup = {c["id"]: c for c in palette}
     materials = calculate_materials(stitches, lookup, width, height, options.canvas_count, options.strands, canvas)
     rendered = np.asarray([[lookup[s["primary_color"]]["rgb"] for s in stitches[y*width:(y+1)*width]] for y in range(height)], dtype=np.uint8)
@@ -137,4 +150,3 @@ def generate_pattern(data: bytes, options: PatternOptions) -> dict:
                     "confetti_replaced": removed, "half_crosses": sum(s["stitch_type"] != "full" for s in stitches),
                     "blended_stitches": int(np.sum(secondary >= 0))},
     }
-

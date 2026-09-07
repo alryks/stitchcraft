@@ -24,7 +24,9 @@
             (.then parse-response)
             (.then (fn [body]
                      (state/set-state! :pattern (js->clj body :keywordize-keys true))
-                     (state/set-state! :selected-region (some-> (aget body "regions") (aget 0) (aget "id")))
+                     (state/set-state! :selected-region nil)
+                     (state/set-state! :selected-color nil)
+                     (state/set-state! :route-step 99999)
                      (state/set-state! :status :ready)))
             (.catch (fn [error]
                       (state/set-state! :error (.-message error))
@@ -37,7 +39,12 @@
                   #js {:method "POST" :headers #js {"Content-Type" "application/json"} :body "{}"})
         (.then parse-response)
         (.then (fn [body]
-                 (swap! state/app-state assoc-in [:pattern :plans] (js->clj (aget body "plans") :keywordize-keys false))
+                 (let [raw-plans (aget body "plans")
+                       plans (into {}
+                                   (map (fn [region-id]
+                                          [region-id (js->clj (aget raw-plans region-id) :keywordize-keys true)])
+                                        (js/Object.keys raw-plans)))]
+                   (swap! state/app-state assoc-in [:pattern :plans] plans))
                  (state/set-state! :status :ready)))
         (.catch (fn [error]
                   (state/set-state! :error (.-message error))

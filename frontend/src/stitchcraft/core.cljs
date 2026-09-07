@@ -176,9 +176,12 @@
          (for [[index segment] (map-indexed vector (:segments plan))]
            ^{:key index} [:div [:b (str "Отрезок " (inc index))] [:span (str (count (:stitches segment)) " ст. · " (:length_mm segment) " мм")]])]]
        [:div.route-empty
-        [:p (if (seq (:plans pattern)) "Для выбранного участка маршрут ещё не рассчитан." "Prolog выберет метод и разделит участки по длине нити.")]
+        [:p (cond
+              (nil? region-id) "Нажмите на клетку схемы, чтобы выбрать участок и посмотреть его маршрут."
+              (seq (:plans pattern)) "Для выбранного участка маршрут ещё не рассчитан."
+              :else "Prolog выберет метод и разделит участки по длине нити.")]
         [:button.secondary-action {:on-click api/plan! :disabled (= :planning (:status @state/app-state))}
-         (if (= :planning (:status @state/app-state)) "Планирую…" "Оптимизировать маршрут")]])]))
+         (if (= :planning (:status @state/app-state)) "Планирую…" "Рассчитать все маршруты")]])]))
 
 (defn inspector [pattern]
   (let [panel (:panel @state/app-state)]

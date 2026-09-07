@@ -10,14 +10,43 @@
   (let [plan (get (:plans pattern) region-id)]
     (->> (:segments plan) (mapcat :route) vec)))
 
+(defn draw-region-selection! [ctx stitches selected-region cell]
+  (when selected-region
+    (let [points (->> stitches
+                      (filter #(= selected-region (:region_id %)))
+                      (map (juxt :x :y))
+                      set)
+          edges [[[0 -1] [0 0] [1 0]]
+                 [[1 0] [1 0] [1 1]]
+                 [[0 1] [1 1] [0 1]]
+                 [[-1 0] [0 1] [0 0]]]]
+      (set! (.-fillStyle ctx) "rgba(237,47,104,.10)")
+      (doseq [[x y] points]
+        (.fillRect ctx (+ margin (* x cell)) (+ margin (* y cell)) cell cell))
+      (set! (.-strokeStyle ctx) "#ed2f68")
+      (set! (.-lineWidth ctx) (max 1.6 (* 1.3 (/ cell 12))))
+      (set! (.-lineCap ctx) "square")
+      (doseq [[x y] points
+              [[dx dy] [ax ay] [bx by]] edges
+              :when (not (contains? points [(+ x dx) (+ y dy)]))]
+        (let [px (+ margin (* x cell)) py (+ margin (* y cell))]
+          (.beginPath ctx)
+          (.moveTo ctx (+ px (* ax cell)) (+ py (* ay cell)))
+          (.lineTo ctx (+ px (* bx cell)) (+ py (* by cell)))
+          (.stroke ctx))))))
+
 (defn draw! [canvas pattern zoom hidden selected-color selected-region route-step show-backstitch]
   (when (and canvas pattern)
     (let [cell (* 12 zoom) width (:width pattern) height (:height pattern)
           pixel-width (+ margin (* width cell)) pixel-height (+ margin (* height cell))
-          ctx (.getContext canvas "2d") colors (color-map pattern)]
+          ctx (.getContext canvas "2d") colors (color-map pattern)
+          canvas-rgb (get-in pattern [:materials :canvas :rgb])]
       (set! (.-width canvas) pixel-width)
       (set! (.-height canvas) pixel-height)
-      (set! (.-fillStyle ctx) "#f9faf8") (.fillRect ctx 0 0 pixel-width pixel-height)
+      (set! (.-fillStyle ctx) (if canvas-rgb
+                                (str "rgb(" (.join (clj->js canvas-rgb) ",") ")")
+                                "#f9faf8"))
+      (.fillRect ctx 0 0 pixel-width pixel-height)
       (doseq [{:keys [x y primary_color secondary_color symbol stitch_type region_id]} (:stitches pattern)]
         (when-not (contains? hidden primary_color)
           (let [color (get colors primary_color) active? (or (nil? selected-color) (= selected-color primary_color))
@@ -35,9 +64,6 @@
               (set! (.-strokeStyle ctx) (:hex (get colors secondary_color)))
               (set! (.-lineWidth ctx) (/ cell 3)) (.beginPath ctx)
               (.moveTo ctx (+ px 2) (+ py cell -2)) (.lineTo ctx (+ px cell -2) (+ py 2)) (.stroke ctx))
-            (when (and (= selected-region region_id) (> cell 8))
-              (set! (.-strokeStyle ctx) "#ff2f6d") (set! (.-lineWidth ctx) 2)
-              (.strokeRect ctx (+ px 1) (+ py 1) (- cell 2) (- cell 2)))
             (when (>= cell 14)
               (set! (.-fillStyle ctx) (if (> (reduce + (:rgb color)) 390) "#18202b" "#ffffff"))
               (set! (.-font ctx) (str (max 7 (* 0.46 cell)) "px 'IBM Plex Mono'"))
@@ -53,6 +79,7 @@
         (set! (.-lineWidth ctx) (if (zero? (mod y 10)) 1.6 0.45))
         (.beginPath ctx) (.moveTo ctx margin (+ margin (* y cell)))
         (.lineTo ctx (+ margin (* width cell)) (+ margin (* y cell))) (.stroke ctx))
+      (draw-region-selection! ctx (:stitches pattern) selected-region cell)
       (set! (.-fillStyle ctx) "#586577") (set! (.-font ctx) "8px 'IBM Plex Mono'")
       (doseq [x (range 0 width 10)] (.fillText ctx (str x) (+ margin (* x cell) 7) 15))
       (doseq [y (range 0 height 10)] (.fillText ctx (str y) 12 (+ margin (* y cell) 9)))
@@ -102,5 +129,4 @@
                                     (when (and (>= x 0) (>= y 0) (< x (:width pattern)) (< y (:height pattern)))
                                       (let [stitch (nth (:stitches pattern) (+ x (* y (:width pattern))))]
                                         (state/set-state! :selected-region (:region_id stitch))
-                                        (state/set-state! :selected-color (:primary_color stitch))))))}]]))})))
-
+                                        (state/set-state! :selected-color nil)))))}]]))})))

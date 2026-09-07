@@ -4,17 +4,16 @@ from collections import Counter
 from .canvas import CANVASES, needle_for_count
 
 
-def select_canvas(mean_rgb: list[float], colors: list[list[int]], requested: str | None) -> dict:
+def select_canvas(background_rgb: list[float], requested: str | None) -> dict:
     if requested:
         found = next((c for c in CANVASES if c["id"] == requested), None)
         if found:
             return found
-    # Favour a calm background that contrasts both the average and darkest thread.
-    def score(canvas: dict) -> float:
-        distance = sum((a-b) ** 2 for a, b in zip(mean_rgb, canvas["rgb"])) ** 0.5
-        min_thread = min((sum((a-b) ** 2 for a, b in zip(rgb, canvas["rgb"])) ** 0.5 for rgb in colors), default=0)
-        return 0.35 * distance + 0.65 * min_thread
-    return max(CANVASES, key=score)
+    # The edge median is a robust estimate of the source background. Matching
+    # it makes the fabric extend the image naturally and avoids dark surprises.
+    def distance(canvas: dict) -> float:
+        return sum((a-b) ** 2 for a, b in zip(background_rgb, canvas["rgb"])) ** 0.5
+    return min(CANVASES, key=distance)
 
 
 def calculate_materials(stitches: list[dict], palette_lookup: dict[str, dict], width: int, height: int,
