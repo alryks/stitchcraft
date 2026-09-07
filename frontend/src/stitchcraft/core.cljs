@@ -24,6 +24,13 @@
      [:span.panel-toggle-mark (if open? "−" "+")]
      [:span label]]))
 
+(defn panel-edge [key side label]
+  [:button.panel-edge {:class side
+                       :aria-label (str "Показать " label)
+                       :title (str "Показать " label)
+                       :on-click #(state/set-state! key true)}
+   (if (= side "left") "›" "‹")])
+
 (defn field [label child & [hint]]
   [:label.field [:span label] child (when hint [:small hint])])
 
@@ -55,6 +62,7 @@
 (defn options-panel []
   (let [options (:options @state/app-state)]
     [:aside.settings
+     [:div.panel-local-header [:span "Параметры"] [panel-toggle :left-panel-open "Параметры"]]
      [upload-card]
      [:section.control-group
       [:h2 "Размер схемы"]
@@ -196,6 +204,7 @@
 (defn inspector [pattern]
   (let [panel (:panel @state/app-state)]
     [:aside.inspector
+     [:div.panel-local-header [:span "Инспектор"] [panel-toggle :right-panel-open "Инспектор"]]
      [:div.panel-tabs
       [:button {:class (when (= panel :materials) "active") :on-click #(state/set-state! :panel :materials)} "Материалы"]
       [:button {:class (when (= panel :colors) "active") :on-click #(state/set-state! :panel :colors)} "Цвета"]
@@ -211,33 +220,40 @@
        (when-not (:left-panel-open @state/app-state) "left-hidden ")
        (when-not (:right-panel-open @state/app-state) "right-hidden")))
 
+(defn panel-edges []
+  (let [{:keys [left-panel-open right-panel-open]} @state/app-state]
+    [:<>
+     (when-not left-panel-open [panel-edge :left-panel-open "left" "Параметры"])
+     (when-not right-panel-open [panel-edge :right-panel-open "right" "Инспектор"])]))
+
 (defn workspace [pattern]
   [:<>
    [:main {:class (workspace-class)}
     [options-panel]
     [:section.pattern-stage [canvas-toolbar pattern] [pattern-canvas/pattern-canvas] [metric-strip pattern]]
-    [inspector pattern]]])
+    [inspector pattern]]
+   [panel-edges]])
 
 (defn app []
   (let [pattern (:pattern @state/app-state)]
     [:div.app-shell
      [:header.topbar [logo]
-      [:div.header-actions
-       [panel-toggle :left-panel-open "Параметры"]
-       [panel-toggle :right-panel-open "Инспектор"]
-       [:div.top-note [:i] [:span "Backend + Prolog готовы к работе"]]]]
+      [:div.top-note [:i] [:span "Backend + Prolog готовы к работе"]]]
      (if pattern
        [workspace pattern]
-       [:main {:class (workspace-class)}
-        [options-panel]
-        [:section.pattern-stage [empty-workspace]]
-        [:aside.inspector.intro-panel
-         [:h2 "Рабочий порядок"]
-         [:ol
-          [:li "Настройте размер и палитру"]
-          [:li "Создайте схему"]
-          [:li "Оптимизируйте маршрут"]
-          [:li "Распечатайте результат"]]]])]))
+       [:<>
+        [:main {:class (workspace-class)}
+         [options-panel]
+         [:section.pattern-stage [empty-workspace]]
+         [:aside.inspector.intro-panel
+          [:div.panel-local-header [:span "Инспектор"] [panel-toggle :right-panel-open "Инспектор"]]
+          [:h2 "Рабочий порядок"]
+          [:ol
+           [:li "Настройте размер и палитру"]
+           [:li "Создайте схему"]
+           [:li "Оптимизируйте маршрут"]
+           [:li "Распечатайте результат"]]]]
+        [panel-edges]])]))
 
 (defn ^:dev/after-load reload! []
   (when @root (.render @root (r/as-element [app]))))
