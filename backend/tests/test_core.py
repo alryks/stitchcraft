@@ -2,6 +2,7 @@ import numpy as np
 
 from app.color import delta_e, rgb_to_lab
 from app.materials import select_canvas
+from app.processing import _backstitch, _proper_intersection
 from app.regions import build_regions, components
 
 
@@ -31,3 +32,21 @@ def test_region_keeps_adjacent_stitch_types_together():
 def test_canvas_matches_source_background():
     assert select_canvas([252, 250, 246], None)["id"] == "white"
     assert select_canvas([20, 23, 29], None)["id"] == "black"
+
+
+def test_backstitch_has_no_duplicate_or_crossing_segments():
+    rgbs = np.array([[255, 255, 255], [220, 45, 75], [24, 24, 28]], dtype=np.uint8)
+    labs = rgb_to_lab(rgbs[None, :, :])[0]
+    palette = [{"id": str(index), "rgb": rgb.tolist(), "lab": lab.tolist()}
+               for index, (rgb, lab) in enumerate(zip(rgbs, labs))]
+    indices = np.zeros((24, 24), dtype=np.int16)
+    indices[4:20, 4:20] = 1
+    indices[8:16, 10:13] = 2
+    image = rgbs[indices]
+    segments = _backstitch(image, indices, np.ones(indices.shape, dtype=np.float32), palette, True)
+    lines = [((s["from_x"], s["from_y"]), (s["to_x"], s["to_y"])) for s in segments]
+
+    assert lines
+    assert len(lines) == len({tuple(sorted(line)) for line in lines})
+    assert not any(_proper_intersection(*first, *second)
+                   for index, first in enumerate(lines) for second in lines[index+1:])

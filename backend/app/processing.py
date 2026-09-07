@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 import math
-from collections import Counter
+from collections import defaultdict
 
 import cv2
 import numpy as np
@@ -65,22 +65,171 @@ def _quantize_lab(image: np.ndarray, colors: int) -> tuple[np.ndarray, np.ndarra
     return lab, quantized
 
 
-def _backstitch(importance: np.ndarray, palette: list[dict], enabled: bool) -> list[dict]:
+GridPoint = tuple[int, int]
+GridEdge = tuple[GridPoint, GridPoint]
+
+
+def _edge_trails(edges: dict[GridEdge, float]) -> list[tuple[list[GridPoint], float]]:
+    """Join a planar set of unit grid edges into maximal, non-repeating trails."""
+    neighbours: dict[GridPoint, set[GridPoint]] = defaultdict(set)
+    for a, b in edges:
+        neighbours[a].add(b)
+        neighbours[b].add(a)
+
+    unused = set(edges)
+    trails = []
+
+    def take(start: GridPoint, first: GridPoint) -> tuple[list[GridPoint], float]:
+        points = [start, first]
+        key = tuple(sorted((start, first)))
+        score = edges[key]
+        unused.discard(key)
+        previous, current = start, first
+        while len(neighbours[current]) == 2:
+            following = next(point for point in neighbours[current] if point != previous)
+            key = tuple(sorted((current, following)))
+            if key not in unused:
+                break
+            points.append(following)
+            score += edges[key]
+            unused.remove(key)
+            previous, current = current, following
+        return points, score
+
+    # Junctions and endpoints split the graph into unambiguous trails.
+    for start in sorted(point for point, adjacent in neighbours.items() if len(adjacent) != 2):
+        for first in sorted(neighbours[start]):
+            key = tuple(sorted((start, first)))
+            if key in unused:
+                trails.append(take(start, first))
+
+    # Components with degree two everywhere are closed loops.
+    while unused:
+        start, first = next(iter(unused))
+        trails.append(take(start, first))
+    return trails
+
+
+def _proper_intersection(a: GridPoint, b: GridPoint, c: GridPoint, d: GridPoint) -> bool:
+    if {a, b} & {c, d}:
+        return False
+
+    def orient(p, q, r):
+        return (q[0]-p[0]) * (r[1]-p[1]) - (q[1]-p[1]) * (r[0]-p[0])
+
+    return orient(a, b, c) * orient(a, b, d) < 0 and orient(c, d, a) * orient(c, d, b) < 0
+
+
+def _suppress_parallel_edges(
+    edges: dict[GridEdge, float], radius: int = 2,
+) -> dict[GridEdge, float]:
+    """Keep one response across a thick source line instead of tracing both sides."""
+    result = {}
+    for edge, score in edges.items():
+        (x1, y1), (x2, y2) = edge
+        competitors = []
+        if x1 == x2:
+            for offset in range(-radius, radius + 1):
+                candidate = tuple(sorted(((x1 + offset, y1), (x2 + offset, y2))))
+                if candidate in edges:
+                    competitors.append((edges[candidate], candidate))
+        else:
+            for offset in range(-radius, radius + 1):
+                candidate = tuple(sorted(((x1, y1 + offset), (x2, y2 + offset))))
+                if candidate in edges:
+                    competitors.append((edges[candidate], candidate))
+        best_score = max(value for value, _ in competitors)
+        best_edge = min(candidate for value, candidate in competitors if value >= best_score-1e-6)
+        if score >= best_score-1e-6 and edge == best_edge:
+            result[edge] = score
+    return result
+
+
+def _backstitch(
+    image: np.ndarray, indices: np.ndarray, importance: np.ndarray,
+    palette: list[dict], enabled: bool,
+) -> list[dict]:
     if not enabled:
         return []
-    mask = (importance > max(0.62, float(np.quantile(importance, 0.8)))).astype(np.uint8) * 255
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    height, width = indices.shape
+    palette_labs = np.asarray([color["lab"] for color in palette], dtype=np.float32)
+    border = np.concatenate((image[0], image[-1], image[1:-1, 0], image[1:-1, -1]))
+    background_lab = rgb_to_lab(np.median(border, axis=0)[None, None, :])[0, 0]
+    background_distance = delta_e(palette_labs[:, None, :], background_lab[None, None, :]).reshape(-1)
+
+    vertical_contrast = delta_e(palette_labs[indices[:, :-1]], palette_labs[indices[:, 1:]])
+    horizontal_contrast = delta_e(palette_labs[indices[:-1, :]], palette_labs[indices[1:, :]])
+    positive = np.concatenate((vertical_contrast[vertical_contrast > 0], horizontal_contrast[horizontal_contrast > 0]))
+    if not len(positive):
+        return []
+
+    # A relative threshold adapts to photographs while the floor prevents subtle
+    # quantisation bands from being outlined in simple artwork.
+    contrast_cutoff = max(14.0, float(np.quantile(positive, 0.62)))
+    importance_cutoff = max(0.16, float(np.quantile(importance, 0.58)))
+    edge_support = cv2.dilate(importance, np.ones((3, 3), dtype=np.uint8))
+    edges: dict[GridEdge, float] = {}
+
+    def add_edge(a, b, contrast, edge_strength, first_index, second_index):
+        if contrast < contrast_cutoff or edge_strength < importance_cutoff:
+            return
+        # Variations close to the border median are usually paper, sky, or scan
+        # texture. They should not compete with the subject's silhouette.
+        if background_distance[first_index] < 24 and background_distance[second_index] < 24:
+            return
+        edges[tuple(sorted((a, b)))] = float(contrast * (0.55 + edge_strength))
+
+    for y in range(height):
+        for x in range(width-1):
+            add_edge(
+                (x + 1, y), (x + 1, y + 1), vertical_contrast[y, x],
+                max(edge_support[y, x], edge_support[y, x + 1]),
+                indices[y, x], indices[y, x + 1],
+            )
+    for y in range(height-1):
+        for x in range(width):
+            add_edge(
+                (x, y + 1), (x + 1, y + 1), horizontal_contrast[y, x],
+                max(edge_support[y, x], edge_support[y + 1, x]),
+                indices[y, x], indices[y + 1, x],
+            )
+
+    if not edges:
+        return []
+
+    edges = _suppress_parallel_edges(edges)
+
+    # Discard isolated fragments, then rank coherent trails by length and contrast.
+    trails = [(points, score) for points, score in _edge_trails(edges)
+              if len(points) >= (9 if points[0] == points[-1] else 4)]
+    trails.sort(key=lambda item: item[1] * math.sqrt(len(item[0])), reverse=True)
     darkest = min(palette, key=lambda c: sum(c["rgb"]))["id"]
-    segments = []
-    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:18]:
-        if cv2.arcLength(contour, True) < 3:
-            continue
-        simplified = cv2.approxPolyDP(contour, 0.8, False).reshape(-1, 2)
-        for a, b in zip(simplified, simplified[1:]):
-            if np.linalg.norm(b-a) >= 0.8:
-                segments.append({"from_x": int(a[0]), "from_y": int(a[1]),
-                                 "to_x": int(b[0]), "to_y": int(b[1]), "color": darkest})
-    return segments[:160]
+    accepted: list[GridEdge] = []
+    accepted_keys: set[GridEdge] = set()
+
+    for points, _ in trails[:36]:
+        closed = points[0] == points[-1]
+        curve = np.asarray(points, dtype=np.int32).reshape(-1, 1, 2)
+        simplified = [
+            tuple(map(int, point))
+            for point in cv2.approxPolyDP(curve, 0.72, closed).reshape(-1, 2)
+        ]
+        if closed and simplified and simplified[0] != simplified[-1]:
+            simplified.append(simplified[0])
+        candidate = list(zip(simplified, simplified[1:]))
+        crosses = any(_proper_intersection(a, b, c, d) for a, b in candidate for c, d in accepted)
+        chosen = list(zip(points, points[1:])) if crosses else candidate
+        for a, b in chosen:
+            key = tuple(sorted((a, b)))
+            if a != b and key not in accepted_keys:
+                accepted.append((a, b))
+                accepted_keys.add(key)
+        if len(accepted) >= 220:
+            break
+
+    return [{"from_x": a[0], "from_y": a[1], "to_x": b[0], "to_y": b[1], "color": darkest}
+            for a, b in accepted[:220]]
 
 
 def generate_pattern(data: bytes, options: PatternOptions) -> dict:
@@ -142,7 +291,7 @@ def generate_pattern(data: bytes, options: PatternOptions) -> dict:
         "physical_width_mm": round(width * 25.4 / options.canvas_count, 1),
         "physical_height_mm": round(height * 25.4 / options.canvas_count, 1),
         "options": options.model_dump(), "stitches": stitches, "regions": regions,
-        "backstitch": _backstitch(importance, palette, options.backstitch),
+        "backstitch": _backstitch(prepared, indices, importance, palette, options.backstitch),
         "colors": used_colors, "canvas_options": CANVASES, "materials": materials,
         "plans": {},
         "metrics": {"mean_delta_e": round(float(np.mean(errors)), 2), "ssim": round(float(ssim), 3),
