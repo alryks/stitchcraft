@@ -1,14 +1,17 @@
 FROM node:20-bookworm-slim AS development
 WORKDIR /app
-COPY package.json shadow-cljs.edn ./
-RUN npm install
+RUN apt-get update && apt-get install -y --no-install-recommends default-jre-headless wget && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY shadow-cljs.edn ./
 COPY . .
 RUN mkdir -p public/fonts \
     && cp node_modules/@fontsource/manrope/files/manrope-cyrillic-400-normal.woff2 public/fonts/ \
     && cp node_modules/@fontsource/manrope/files/manrope-cyrillic-600-normal.woff2 public/fonts/ \
     && cp node_modules/@fontsource/manrope/files/manrope-cyrillic-700-normal.woff2 public/fonts/ \
     && cp node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2 public/fonts/
-RUN chmod +x /app/entrypoint.sh
+RUN npx shadow-cljs compile app
+RUN chmod +x /app/entrypoint.sh /app/dev.sh
 EXPOSE 3000 9630
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["npx", "shadow-cljs", "watch", "app"]

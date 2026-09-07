@@ -24,9 +24,10 @@ def calculate_materials(stitches: list[dict], palette_lookup: dict[str, dict], w
     usage = Counter()
     for stitch in stitches:
         factor = 2.15 if stitch["stitch_type"] == "full" else 1.15
-        usage[stitch["primary_color"]] += cell_mm * factor * strands
-        if stitch.get("secondary_color"):
-            usage[stitch["secondary_color"]] += cell_mm * factor
+        secondary = stitch.get("secondary_color")
+        usage[stitch["primary_color"]] += cell_mm * factor * (1 if secondary else strands)
+        if secondary:
+            usage[secondary] += cell_mm * factor
     threads = []
     for color_id, millimetres in usage.most_common():
         metres = millimetres / 1000 * 1.18
@@ -40,4 +41,3 @@ def calculate_materials(stitches: list[dict], palette_lookup: dict[str, dict], w
         "threads": threads,
         "total_thread_m": round(sum(t["metres"] for t in threads), 2),
     }
-

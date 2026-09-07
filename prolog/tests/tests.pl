@@ -12,10 +12,9 @@ stitches_line([
 test(horizontal_allowed) :- allowed_transition(0-0, 1-0, horizontal, 1.0).
 test(long_diagonal_forbidden, [fail]) :- allowed_transition(0-0, 2-2, _, _).
 test(cell_size) :- cell_size(14, S), S > 1.8, S < 1.82.
-test(danish_line) :-
+test(danish_line, [nondet]) :-
     stitches_line(S), plan_region(S, 1000, 14, 55, 2, P), P.method == danish,
     P.stats.thread_segments =:= 1.
 
 :- end_tests(planner).
 run_tests :- run_tests([planner]).
-

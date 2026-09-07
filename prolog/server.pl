@@ -8,7 +8,9 @@
 :- http_handler(root(health), health, []).
 :- http_handler(root(plan), plan, [method(post)]).
 
-server(Port) :- http_server(http_dispatch, [port(Port)]).
+server(Port) :-
+    http_server(http_dispatch, [port(Port)]),
+    thread_get_message(_).
 
 health(_Request) :- reply_json_dict(_{status:"ok", service:"prolog"}).
 
@@ -25,4 +27,3 @@ defaults(B, Region, Length, Count, Tail, Fold) :-
     Count=B.get(canvas_count, 14),
     Tail=B.get(tail_length_mm, 55),
     Fold=B.get(fold_parts, 2).
-

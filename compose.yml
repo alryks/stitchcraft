@@ -35,8 +35,11 @@ services:
       retries: 12
 
   frontend:
-    build: ./frontend
-    command: npx shadow-cljs watch app
+    image: stitchcraft-frontend-dev
+    build:
+      context: ./frontend
+      target: development
+    command: /app/dev.sh
     environment:
       PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
     ports:
@@ -48,4 +51,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20

@@ -1,16 +1,21 @@
 services:
   backend:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    volumes:
+    volumes: !override
       - ./palettes:/palettes:ro
 
   frontend:
+    image: stitchcraft-frontend-prod
     build:
       context: ./frontend
       target: production
     command: []
     environment: {}
-    ports:
+    ports: !override
       - "${FRONTEND_PORT:-3000}:80"
-    volumes: []
+    volumes: !override []
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost"]
 
+  prolog:
+    volumes: !override []
