@@ -165,12 +165,17 @@ summary:focus-visible {
 }
 .panel-local-header .panel-toggle {
   height: 26px;
-  padding: 0 7px;
+  width: 26px;
+  justify-content: center;
+  padding: 0;
   font-size: 10px;
+}
+.panel-local-header .panel-toggle > span:not(.panel-toggle-mark) {
+  display: none;
 }
 .panel-edge {
   position: fixed;
-  top: 86px;
+  top: 68px;
   z-index: 30;
   width: 34px;
   height: 34px;
@@ -180,6 +185,10 @@ summary:focus-visible {
   box-shadow: 0 3px 12px rgba(43, 57, 66, 0.18);
   cursor: pointer;
   font: 22px/1 var(--mono);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  text-align: center;
 }
 .panel-edge.left {
   left: 0;
@@ -902,7 +911,7 @@ summary:focus-visible {
     display: none;
   }
   .panel-edge {
-    top: 72px;
+    top: 58px;
   }
   .workspace {
     display: flex;
