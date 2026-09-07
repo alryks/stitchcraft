@@ -128,5 +128,9 @@
                                         y (js/Math.floor (/ (- (.-clientY event) (.-top rect) margin) cell))]
                                     (when (and (>= x 0) (>= y 0) (< x (:width pattern)) (< y (:height pattern)))
                                       (let [stitch (nth (:stitches pattern) (+ x (* y (:width pattern))))]
-                                        (state/set-state! :selected-region (:region_id stitch))
+                                        (let [region-id (:region_id stitch)
+                                              already-selected? (= region-id (:selected-region @state/app-state))]
+                                          (state/set-state! :selected-region (when-not already-selected? region-id))
+                                          (when already-selected?
+                                            (state/set-state! :route-step 99999)))
                                         (state/set-state! :selected-color nil)))))}]]))})))
