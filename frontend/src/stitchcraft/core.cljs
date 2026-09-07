@@ -14,6 +14,16 @@
     [:path.accent {:d "M23 23h14v14H23zM25 25l10 10m0-10L25 35"}]]
    [:div [:strong "Нить"] [:span "Конструктор схем"]]])
 
+(defn panel-toggle [key label]
+  (let [open? (get @state/app-state key)]
+    [:button.panel-toggle {:class (when open? "active")
+                           :aria-label (str (if open? "Скрыть " "Показать ") label)
+                           :aria-pressed open?
+                           :title (str (if open? "Скрыть " "Показать ") label)
+                           :on-click #(state/set-state! key (not open?))}
+     [:span.panel-toggle-mark (if open? "−" "+")]
+     [:span label]]))
+
 (defn field [label child & [hint]]
   [:label.field [:span label] child (when hint [:small hint])])
 
@@ -122,7 +132,7 @@
       [:strong (str (:width pattern) " × " (:height pattern))]
       [:span (str (:physical_width_mm pattern) " × " (:physical_height_mm pattern) " мм")]]
      [:div.toolbar-actions
-      [:label.zoom-control [:span "Масштаб"] [:input {:type "range" :min 0.65 :max 2.5 :step 0.05 :value zoom
+      [:label.zoom-control [:span "Масштаб"] [:input {:type "range" :min 0.15 :max 2.5 :step 0.05 :value zoom
                                                        :on-change #(state/set-state! :zoom (js/Number (.. % -target -value)))}] [:b (str (js/Math.round (* zoom 100)) "%")]]
       [:button.icon-button {:class (when show-backstitch "active") :title "Показать backstitch"
                             :on-click #(state/set-state! :show-backstitch (not show-backstitch))} "⌁"]]]))
@@ -196,9 +206,14 @@
       (when-let [region (:selected-region @state/app-state)]
         [:a.text-link {:href (api/facts-url (:id pattern) region) :target "_blank" :rel "noreferrer"} "Факты Prolog участка"])] ]))
 
+(defn workspace-class []
+  (str "workspace "
+       (when-not (:left-panel-open @state/app-state) "left-hidden ")
+       (when-not (:right-panel-open @state/app-state) "right-hidden")))
+
 (defn workspace [pattern]
   [:<>
-   [:main.workspace
+   [:main {:class (workspace-class)}
     [options-panel]
     [:section.pattern-stage [canvas-toolbar pattern] [pattern-canvas/pattern-canvas] [metric-strip pattern]]
     [inspector pattern]]])
@@ -207,10 +222,13 @@
   (let [pattern (:pattern @state/app-state)]
     [:div.app-shell
      [:header.topbar [logo]
-      [:div.top-note [:i] [:span "Backend + Prolog готовы к работе"]]]
+      [:div.header-actions
+       [panel-toggle :left-panel-open "Параметры"]
+       [panel-toggle :right-panel-open "Инспектор"]
+       [:div.top-note [:i] [:span "Backend + Prolog готовы к работе"]]]]
      (if pattern
        [workspace pattern]
-       [:main.workspace
+       [:main {:class (workspace-class)}
         [options-panel]
         [:section.pattern-stage [empty-workspace]]
         [:aside.inspector.intro-panel

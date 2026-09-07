@@ -124,10 +124,50 @@ summary:focus-visible {
   background: #2f9f74;
   box-shadow: 0 0 0 4px rgba(47, 159, 116, 0.12);
 }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-toggle {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #b9c4ca;
+  background: rgba(255, 255, 255, 0.58);
+  color: #65727f;
+  padding: 0 9px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.panel-toggle:hover,
+.panel-toggle.active {
+  color: var(--ink);
+  border-color: #91aabd;
+  background: var(--blue-pale);
+}
+.panel-toggle-mark {
+  font: 16px/1 var(--mono);
+  color: var(--thread);
+}
 .workspace {
   display: grid;
   grid-template-columns: 292px minmax(420px, 1fr) 320px;
   min-height: calc(100vh - 68px);
+}
+.workspace.left-hidden {
+  grid-template-columns: minmax(420px, 1fr) 320px;
+}
+.workspace.right-hidden {
+  grid-template-columns: 292px minmax(420px, 1fr);
+}
+.workspace.left-hidden.right-hidden {
+  grid-template-columns: minmax(420px, 1fr);
+}
+.workspace.left-hidden .settings,
+.workspace.right-hidden .inspector {
+  display: none;
 }
 .settings,
 .inspector {
@@ -787,6 +827,15 @@ summary:focus-visible {
   .workspace {
     grid-template-columns: 260px minmax(380px, 1fr);
   }
+  .workspace.left-hidden {
+    grid-template-columns: minmax(380px, 1fr);
+  }
+  .workspace.right-hidden {
+    grid-template-columns: 260px minmax(380px, 1fr);
+  }
+  .workspace.left-hidden.right-hidden {
+    grid-template-columns: minmax(380px, 1fr);
+  }
   .inspector {
     grid-column: 1/-1;
     border-left: 0;
@@ -813,6 +862,12 @@ summary:focus-visible {
   }
   .top-note {
     display: none;
+  }
+  .header-actions {
+    gap: 4px;
+  }
+  .panel-toggle {
+    padding: 0 7px;
   }
   .workspace {
     display: flex;

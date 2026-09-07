@@ -10,9 +10,9 @@
 (defonce app-state
   (r/atom {:options defaults :file nil :preview nil :pattern nil :status :idle :error nil
            :zoom 1.0 :hidden-colors #{} :selected-color nil :selected-region nil
-           :route-step 99999 :show-backstitch true :panel :materials}))
+           :route-step 99999 :show-backstitch true :panel :materials
+           :left-panel-open true :right-panel-open true}))
 
 (defn set-option! [key value] (swap! app-state assoc-in [:options key] value))
 (defn set-state! [key value] (swap! app-state assoc key value))
 (defn toggle-set! [key value] (swap! app-state update key #(if (contains? % value) (disj % value) (conj % value))))
-
