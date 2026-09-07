@@ -253,8 +253,7 @@
 (defn app []
   (let [pattern (:pattern @state/app-state)]
     [:div.app-shell
-     [:header.topbar [logo]
-      [:div.top-note [:i] [:span "Backend + Prolog готовы к работе"]]]
+     [:header.topbar [logo]]
      (if pattern
        [workspace pattern]
        [:<>

@@ -75,7 +75,7 @@ summary:focus-visible {
   padding: 0 22px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   border-bottom: 1px solid #bcc7ce;
   background: rgba(247, 248, 245, 0.92);
   position: sticky;
@@ -110,20 +110,6 @@ summary:focus-visible {
   color: var(--muted);
   font-size: 11px;
   margin-top: 4px;
-}
-.top-note {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #526171;
-  font-size: 12px;
-}
-.top-note i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #2f9f74;
-  box-shadow: 0 0 0 4px rgba(47, 159, 116, 0.12);
 }
 .panel-toggle {
   height: 30px;
@@ -925,9 +911,6 @@ summary:focus-visible {
   .topbar {
     height: 58px;
     padding: 0 13px;
-  }
-  .top-note {
-    display: none;
   }
   .panel-edge {
     top: 58px;
