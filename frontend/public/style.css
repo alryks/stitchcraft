@@ -33,6 +33,7 @@
   --line: #cdd5da;
   --panel: #fff;
   --mono: "IBM Plex Mono", monospace;
+  --panel-edge-size: 34px;
 }
 * {
   box-sizing: border-box;
@@ -177,8 +178,8 @@ summary:focus-visible {
   position: fixed;
   top: 68px;
   z-index: 30;
-  width: 34px;
-  height: 34px;
+  width: var(--panel-edge-size);
+  height: var(--panel-edge-size);
   border: 1px solid #9fb2c0;
   background: var(--panel);
   color: var(--thread);
@@ -215,6 +216,12 @@ summary:focus-visible {
 .workspace.left-hidden .settings,
 .workspace.right-hidden .inspector {
   display: none;
+}
+.workspace.left-hidden .pattern-stage {
+  padding-left: var(--panel-edge-size);
+}
+.workspace.right-hidden .pattern-stage {
+  padding-right: var(--panel-edge-size);
 }
 .settings,
 .inspector {
