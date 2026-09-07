@@ -4,7 +4,7 @@
 (declare plan!)
 
 (defn base-url []
-  (or (some-> js/window .-STITCHCRAFT_CONFIG .-apiUrl) "http://localhost:8000"))
+  (or (aget js/window "STITCHCRAFT_CONFIG" "apiUrl") "http://localhost:8000"))
 
 (defn parse-response [response]
   (if (.-ok response)
