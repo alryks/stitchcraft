@@ -574,9 +574,12 @@ summary:focus-visible {
 .mini-grid i.marked:after {
   content: "×";
   color: white;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
   height: 100%;
+  line-height: 1;
   font-style: normal;
 }
 .empty-workspace p {
