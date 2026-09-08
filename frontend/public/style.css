@@ -549,16 +549,20 @@ summary:focus-visible {
   margin: auto;
 }
 .mini-grid {
-  width: 136px;
-  height: 136px;
+  width: 220px;
+  height: 220px;
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
   border-top: 1px solid #aab8c1;
   border-left: 1px solid #aab8c1;
   transform: rotate(-3deg);
   box-shadow: 8px 9px 0 rgba(49, 95, 130, 0.08);
 }
 .mini-grid i {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   border-right: 1px solid #aab8c1;
   border-bottom: 1px solid #aab8c1;
   background: #f7f8f5;
@@ -570,34 +574,21 @@ summary:focus-visible {
 .mini-grid i.marked:after {
   content: "×";
   color: white;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
   height: 100%;
+  font-size: 21px;
+  line-height: 1;
   font-style: normal;
-}
-.empty-workspace h1 {
-  font-size: 27px;
-  letter-spacing: -0.035em;
-  margin: 29px 0 10px;
+  transform: translateY(-1px);
 }
 .empty-workspace p {
   line-height: 1.65;
   color: #5b6874;
   max-width: 540px;
-  margin: 0;
-}
-.capabilities {
-  display: flex;
-  gap: 9px;
-  margin-top: 21px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-.capabilities span {
-  font-size: 10px;
-  padding: 6px 9px;
-  border: 1px solid #b4c0c7;
-  background: rgba(255, 255, 255, 0.45);
+  margin: 29px 0 0;
 }
 .panel-tabs {
   height: 54px;
@@ -1030,8 +1021,9 @@ summary:focus-visible {
   .empty-workspace {
     padding: 42px 22px;
   }
-  .empty-workspace h1 {
-    font-size: 23px;
+  .mini-grid {
+    width: min(220px, 62vw);
+    height: min(220px, 62vw);
   }
 }
 @media (prefers-reduced-motion: reduce) {
