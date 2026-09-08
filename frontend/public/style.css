@@ -581,6 +581,7 @@ summary:focus-visible {
   height: 100%;
   line-height: 1;
   font-style: normal;
+  transform: translateY(-1px);
 }
 .empty-workspace p {
   line-height: 1.65;
