@@ -1,8 +1,12 @@
+import io
+
 import numpy as np
+from PIL import Image
 
 from app.color import delta_e, rgb_to_lab
 from app.materials import select_canvas
-from app.processing import _backstitch, _proper_intersection
+from app.models import PatternOptions
+from app.processing import _background_mask, _backstitch, _proper_intersection, generate_pattern
 from app.regions import build_regions, components
 
 
@@ -32,6 +36,57 @@ def test_region_keeps_adjacent_stitch_types_together():
 def test_canvas_matches_source_background():
     assert select_canvas([252, 250, 246], None)["id"] == "white"
     assert select_canvas([20, 23, 29], None)["id"] == "black"
+
+
+def test_background_mask_only_removes_similar_area_connected_to_edge():
+    image = np.full((7, 7, 3), 247, dtype=np.uint8)
+    image[2:5, 2:5] = [190, 30, 40]
+    image[3, 3] = [247, 247, 247]
+    mask = _background_mask(image, np.full((7, 7), 255, dtype=np.uint8), 8)
+
+    assert mask[0, 0]
+    assert not mask[2, 2]
+    assert not mask[3, 3]
+
+
+def test_transparent_background_creates_no_background_stitches():
+    image = Image.new("RGBA", (16, 16), (255, 255, 255, 0))
+    for y in range(5, 11):
+        for x in range(5, 11):
+            image.putpixel((x, y), (200, 25, 45, 255))
+    data = io.BytesIO()
+    image.save(data, format="PNG")
+
+    pattern = generate_pattern(
+        data.getvalue(),
+        PatternOptions(width=16, max_colors=4, remove_background=True,
+                       blends=False, half_cross=False, backstitch=False),
+    )
+
+    assert pattern["metrics"]["background_removed"] > 0
+    assert len(pattern["stitches"]) < 16 * 16
+    assert all(not (stitch["x"] == 0 or stitch["y"] == 0) for stitch in pattern["stitches"])
+
+
+def test_background_removal_does_not_change_remaining_stitches():
+    image = Image.new("RGB", (18, 18), (245, 242, 235))
+    for y in range(4, 14):
+        for x in range(5, 13):
+            image.putpixel((x, y), (35 + x * 8, 55 + y * 5, 150))
+    data = io.BytesIO()
+    image.save(data, format="PNG")
+    common = dict(width=18, max_colors=6, backstitch=False)
+
+    complete = generate_pattern(data.getvalue(), PatternOptions(**common, remove_background=False))
+    cut_out = generate_pattern(data.getvalue(), PatternOptions(**common, remove_background=True))
+    complete_at = {(stitch["x"], stitch["y"]): stitch for stitch in complete["stitches"]}
+
+    assert len(cut_out["stitches"]) < len(complete["stitches"])
+    for stitch in cut_out["stitches"]:
+        original = complete_at[(stitch["x"], stitch["y"])]
+        assert (stitch["primary_color"], stitch["secondary_color"], stitch["stitch_type"], stitch["symbol"]) == (
+            original["primary_color"], original["secondary_color"], original["stitch_type"], original["symbol"]
+        )
 
 
 def test_backstitch_has_no_duplicate_or_crossing_segments():
