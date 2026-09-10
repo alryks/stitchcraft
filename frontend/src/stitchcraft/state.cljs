@@ -5,7 +5,8 @@
   {:width 72 :height nil :size_unit "stitches" :physical_size 18 :size_axis "width"
    :canvas_count 14 :palette "dmc" :max_colors 14 :blends true :half_cross true
    :backstitch true :min_component_size 3 :thread_length_mm 1000 :strands 2
-   :fold_parts 2 :needle_length_mm 40 :canvas_color nil})
+   :fold_parts 2 :needle_length_mm 40 :canvas_color nil
+   :remove_background false :background_tolerance 1})
 
 (defonce app-state
   (r/atom {:options defaults :file nil :preview nil :pattern nil :status :idle :error nil
