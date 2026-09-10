@@ -110,7 +110,11 @@
         [:option {:value "black"} "Чёрная"]
         [:option {:value "navy"} "Тёмно-синяя"]
         [:option {:value "pale-blue"} "Бледно-голубая"]]]
-      [:div.toggle-stack [toggle :blends "Смешанные цвета"] [toggle :half_cross "Полукрест на границах"] [toggle :backstitch "Шов назад иголку"]]
+      [:div.toggle-stack
+       [toggle :remove_background "Убрать фон"]
+       [toggle :blends "Смешанные цвета"]
+       [toggle :half_cross "Полукрест на границах"]
+       [toggle :backstitch "Шов назад иголку"]]
       [:p.option-hint "Печатная схема использует этот переключатель — выключите его перед открытием, если шов назад иголку не нужен."]
       [:details.advanced
        [:summary "Расход и очистка"]
@@ -120,7 +124,11 @@
        [:div.two-fields
         [field "Сложение" [:select {:value (:fold_parts options) :on-change #(state/set-option! :fold_parts (js/Number (.. % -target -value)))}
                            [:option {:value 2} "Пополам"] [:option {:value 3} "На 3 части"]]]
-        [field "Min. участок" [number-input :min_component_size {:min 1 :max 20 :step 1}]]]]]
+        [field "Min. участок" [number-input :min_component_size {:min 1 :max 20 :step 1}]]]
+       (when (:remove_background options)
+         [field "Допуск фона"
+          [number-input :background_tolerance {:min 1 :max 50 :step 1}]
+          "Больше — удаляется более широкий диапазон близких оттенков"])] ]
      [:button.primary-action {:on-click api/generate! :disabled (contains? #{:generating :planning} (:status @state/app-state))}
       (if (= :generating (:status @state/app-state)) [:<> [:span.spinner] "Строю схему…"] "Создать схему")]
      (when-let [error (:error @state/app-state)] [:p.error-message error])]))

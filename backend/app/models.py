@@ -26,6 +26,8 @@ class PatternOptions(BaseModel):
     fold_parts: int = Field(2, ge=2, le=3)
     needle_length_mm: float = Field(40, ge=25, le=70)
     canvas_color: str | None = None
+    remove_background: bool = False
+    background_tolerance: float = Field(1, ge=1, le=50)
 
 
 class PlanRequest(BaseModel):
@@ -33,4 +35,3 @@ class PlanRequest(BaseModel):
     thread_length_mm: float | None = None
     canvas_count: int | None = None
     fold_parts: int | None = None
-

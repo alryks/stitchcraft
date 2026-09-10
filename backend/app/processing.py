@@ -34,9 +34,10 @@ def _dimensions(image: Image.Image, options: PatternOptions) -> tuple[int, int]:
     return max(8, round(width * scale)), max(8, round(height * scale))
 
 
-def _prepare_image(data: bytes, width: int, height: int) -> tuple[np.ndarray, np.ndarray]:
+def _prepare_image(data: bytes, width: int, height: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     image = Image.open(io.BytesIO(data))
     image = ImageOps.exif_transpose(image).convert("RGBA")
+    alpha = np.asarray(image.getchannel("A").resize((width, height), Image.Resampling.LANCZOS), dtype=np.uint8)
     background = Image.new("RGBA", image.size, (255, 255, 255, 255))
     background.alpha_composite(image)
     rgb = background.convert("RGB")
@@ -52,16 +53,36 @@ def _prepare_image(data: bytes, width: int, height: int) -> tuple[np.ndarray, np
     sharpened = cv2.addWeighted(reduced, 1.22, soft, -0.22, 0)
     mask = importance[..., None]
     prepared = np.clip(reduced * (1-mask*0.24) + sharpened * (mask*0.24), 0, 255).astype(np.uint8)
-    return prepared, importance
+    return prepared, importance, alpha
 
 
-def _quantize_lab(image: np.ndarray, colors: int) -> tuple[np.ndarray, np.ndarray]:
+def _background_mask(image: np.ndarray, alpha: np.ndarray, tolerance: float) -> np.ndarray:
+    """Find background-like cells connected to the outside edge of the image."""
+    border = np.concatenate((image[0], image[-1], image[1:-1, 0], image[1:-1, -1]))
+    background_lab = rgb_to_lab(np.median(border, axis=0)[None, None, :])[0, 0]
+    distance = delta_e(rgb_to_lab(image), background_lab[None, None, :])
+    candidates = (distance <= tolerance) | (alpha < 128)
+    count, labels = cv2.connectedComponents(candidates.astype(np.uint8), connectivity=8)
+    if count <= 1:
+        return np.zeros(candidates.shape, dtype=bool)
+    border_labels = np.unique(np.concatenate((labels[0], labels[-1], labels[1:-1, 0], labels[1:-1, -1])))
+    border_labels = border_labels[border_labels != 0]
+    return np.isin(labels, border_labels)
+
+
+def _quantize_lab(
+    image: np.ndarray, colors: int, included: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     lab = rgb_to_lab(image)
-    pixels = lab.reshape(-1, 3).astype(np.float32)
+    pixels = lab[included].astype(np.float32) if included is not None else lab.reshape(-1, 3).astype(np.float32)
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 35, 0.15)
     cv2.setRNGSeed(42)
     _, labels, centers = cv2.kmeans(pixels, colors, None, criteria, 4, cv2.KMEANS_PP_CENTERS)
-    quantized = centers[labels.ravel()].reshape(lab.shape)
+    if included is None:
+        quantized = centers[labels.ravel()].reshape(lab.shape)
+    else:
+        quantized = lab.copy()
+        quantized[included] = centers[labels.ravel()]
     return lab, quantized
 
 
@@ -147,7 +168,7 @@ def _suppress_parallel_edges(
 
 def _backstitch(
     image: np.ndarray, indices: np.ndarray, importance: np.ndarray,
-    palette: list[dict], enabled: bool,
+    palette: list[dict], enabled: bool, foreground: np.ndarray | None = None,
 ) -> list[dict]:
     if not enabled:
         return []
@@ -160,7 +181,13 @@ def _backstitch(
 
     vertical_contrast = delta_e(palette_labs[indices[:, :-1]], palette_labs[indices[:, 1:]])
     horizontal_contrast = delta_e(palette_labs[indices[:-1, :]], palette_labs[indices[1:, :]])
-    positive = np.concatenate((vertical_contrast[vertical_contrast > 0], horizontal_contrast[horizontal_contrast > 0]))
+    vertical_active = np.ones(vertical_contrast.shape, dtype=bool)
+    horizontal_active = np.ones(horizontal_contrast.shape, dtype=bool)
+    if foreground is not None:
+        vertical_active = foreground[:, :-1] | foreground[:, 1:]
+        horizontal_active = foreground[:-1, :] | foreground[1:, :]
+    positive = np.concatenate((vertical_contrast[(vertical_contrast > 0) & vertical_active],
+                               horizontal_contrast[(horizontal_contrast > 0) & horizontal_active]))
     if not len(positive):
         return []
 
@@ -171,7 +198,9 @@ def _backstitch(
     edge_support = cv2.dilate(importance, np.ones((3, 3), dtype=np.uint8))
     edges: dict[GridEdge, float] = {}
 
-    def add_edge(a, b, contrast, edge_strength, first_index, second_index):
+    def add_edge(a, b, contrast, edge_strength, first_index, second_index, active):
+        if not active:
+            return
         if contrast < contrast_cutoff or edge_strength < importance_cutoff:
             return
         # Variations close to the border median are usually paper, sky, or scan
@@ -186,6 +215,7 @@ def _backstitch(
                 (x + 1, y), (x + 1, y + 1), vertical_contrast[y, x],
                 max(edge_support[y, x], edge_support[y, x + 1]),
                 indices[y, x], indices[y, x + 1],
+                foreground is None or foreground[y, x] or foreground[y, x + 1],
             )
     for y in range(height-1):
         for x in range(width):
@@ -193,6 +223,7 @@ def _backstitch(
                 (x, y + 1), (x + 1, y + 1), horizontal_contrast[y, x],
                 max(edge_support[y, x], edge_support[y + 1, x]),
                 indices[y, x], indices[y + 1, x],
+                foreground is None or foreground[y, x] or foreground[y + 1, x],
             )
 
     if not edges:
@@ -235,12 +266,20 @@ def _backstitch(
 def generate_pattern(data: bytes, options: PatternOptions) -> dict:
     source = Image.open(io.BytesIO(data))
     width, height = _dimensions(source, options)
-    prepared, importance = _prepare_image(data, width, height)
-    original_lab, quantized_lab = _quantize_lab(prepared, min(options.max_colors, width * height))
+    prepared, importance, alpha = _prepare_image(data, width, height)
+    border = np.concatenate((prepared[0], prepared[-1], prepared[1:-1, 0], prepared[1:-1, -1]))
+    canvas = select_canvas(np.median(border, axis=0).tolist(), options.canvas_color)
+    background = (_background_mask(prepared, alpha, options.background_tolerance)
+                  if options.remove_background else np.zeros((height, width), dtype=bool))
+    foreground = ~background
+    foreground_count = int(np.sum(foreground))
     palette = load_palette(options.palette)
-    indices, errors = match_palette(quantized_lab, palette)
     palette_labs = np.asarray([c["lab"] for c in palette], dtype=np.float32)
-    indices, removed = reduce_confetti(indices, original_lab, palette_labs, importance, options.min_component_size)
+    original_lab, quantized_lab = _quantize_lab(prepared, min(options.max_colors, width * height))
+    indices, errors = match_palette(quantized_lab, palette)
+    indices, removed = reduce_confetti(
+        indices, original_lab, palette_labs, importance, options.min_component_size,
+    )
     errors = delta_e(original_lab, palette_labs[indices])
     secondary = np.full(indices.shape, -1, dtype=np.int16)
     if options.blends:
@@ -258,12 +297,15 @@ def generate_pattern(data: bytes, options: PatternOptions) -> dict:
                          + np.asarray([palette[idx]["rgb"] for idx in secondary[blended]], dtype=np.float32)) / 2
             errors[blended] = delta_e(original_lab[blended], rgb_to_lab(blend_rgb))
 
-    used_indices = sorted(set(indices.ravel().tolist()) | {int(v) for v in secondary.ravel() if v >= 0})
-    symbols = {idx: SYMBOLS[pos % len(SYMBOLS)] for pos, idx in enumerate(used_indices)}
+    symbol_indices = sorted(set(indices.ravel().tolist()) | {int(v) for v in secondary.ravel() if v >= 0})
+    used_indices = sorted(set(indices[foreground].tolist()) | {int(v) for v in secondary[foreground] if v >= 0})
+    symbols = {idx: SYMBOLS[pos % len(SYMBOLS)] for pos, idx in enumerate(symbol_indices)}
     edge_cutoff = max(0.68, float(np.quantile(importance, 0.88)))
     stitches = []
     for y in range(height):
         for x in range(width):
+            if background[y, x]:
+                continue
             primary_index = int(indices[y, x]); secondary_index = int(secondary[y, x])
             stitch_type = "full"
             if options.half_cross and importance[y, x] >= edge_cutoff and (x + y) % 3 == 0:
@@ -278,11 +320,11 @@ def generate_pattern(data: bytes, options: PatternOptions) -> dict:
             })
     regions = build_regions(stitches, width, height)
     used_colors = [{**palette[idx], "symbol": symbols[idx]} for idx in used_indices]
-    border = np.concatenate((prepared[0], prepared[-1], prepared[1:-1, 0], prepared[1:-1, -1]))
-    canvas = select_canvas(np.median(border, axis=0).tolist(), options.canvas_color)
     lookup = {c["id"]: c for c in palette}
     materials = calculate_materials(stitches, lookup, width, height, options.canvas_count, options.strands, canvas)
-    rendered = np.asarray([[lookup[s["primary_color"]]["rgb"] for s in stitches[y*width:(y+1)*width]] for y in range(height)], dtype=np.uint8)
+    rendered = np.empty((height, width, 3), dtype=np.uint8)
+    rendered[:] = canvas["rgb"]
+    rendered[foreground] = np.asarray([palette[idx]["rgb"] for idx in indices[foreground]], dtype=np.uint8)
     min_side = min(width, height)
     ssim = structural_similarity(prepared, rendered, channel_axis=2, data_range=255,
                                  win_size=min(7, min_side if min_side % 2 else min_side-1))
@@ -291,11 +333,13 @@ def generate_pattern(data: bytes, options: PatternOptions) -> dict:
         "physical_width_mm": round(width * 25.4 / options.canvas_count, 1),
         "physical_height_mm": round(height * 25.4 / options.canvas_count, 1),
         "options": options.model_dump(), "stitches": stitches, "regions": regions,
-        "backstitch": _backstitch(prepared, indices, importance, palette, options.backstitch),
+        "backstitch": _backstitch(prepared, indices, importance, palette, options.backstitch, foreground),
         "colors": used_colors, "canvas_options": CANVASES, "materials": materials,
         "plans": {},
-        "metrics": {"mean_delta_e": round(float(np.mean(errors)), 2), "ssim": round(float(ssim), 3),
+        "metrics": {"mean_delta_e": round(float(np.mean(errors[foreground])), 2) if foreground_count else 0.0,
+                    "ssim": round(float(ssim), 3),
                     "color_count": len(used_colors), "regions": len(regions),
                     "confetti_replaced": removed, "half_crosses": sum(s["stitch_type"] != "full" for s in stitches),
-                    "blended_stitches": int(np.sum(secondary >= 0))},
+                    "blended_stitches": int(np.sum(secondary >= 0)),
+                    "background_removed": int(np.sum(background))},
     }
