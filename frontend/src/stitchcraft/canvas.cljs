@@ -6,9 +6,30 @@
 
 (defn color-map [pattern] (into {} (map (juxt :id identity) (:colors pattern))))
 
-(defn route-points [pattern region-id]
-  (let [plan (get (:plans pattern) region-id)]
-    (->> (:segments plan) (mapcat :route) vec)))
+(defn draw-route! [ctx pattern region-id route-step cell]
+  (loop [segments (get-in pattern [:plans region-id :segments])
+         remaining route-step]
+    (when (and (seq segments) (pos? remaining))
+      (let [points (take remaining (:route (first segments)))
+            point-count (count points)]
+        (when (seq points)
+          (if (= point-count 1)
+            (let [point (first points)
+                  px (+ margin (* (+ (:x point) 0.5) cell))
+                  py (+ margin (* (+ (:y point) 0.5) cell))]
+              (.beginPath ctx)
+              (.arc ctx px py (* (.-lineWidth ctx) 0.75) 0 (* 2 js/Math.PI))
+              (.fill ctx))
+            (do
+              (.beginPath ctx)
+              (doseq [[index point] (map-indexed vector points)]
+                (let [px (+ margin (* (+ (:x point) 0.5) cell))
+                      py (+ margin (* (+ (:y point) 0.5) cell))]
+                  (if (zero? index)
+                    (.moveTo ctx px py)
+                    (.lineTo ctx px py))))
+              (.stroke ctx))))
+        (recur (rest segments) (- remaining point-count))))))
 
 (defn draw-region-selection! [ctx stitches selected-region cell]
   (when selected-region
@@ -88,14 +109,11 @@
         (doseq [{:keys [from_x from_y to_x to_y]} (:backstitch pattern)]
           (.beginPath ctx) (.moveTo ctx (+ margin (* from_x cell)) (+ margin (* from_y cell)))
           (.lineTo ctx (+ margin (* to_x cell)) (+ margin (* to_y cell))) (.stroke ctx)))
-      (let [points (take route-step (route-points pattern selected-region))]
-        (when (seq points)
-          (set! (.-strokeStyle ctx) "#ff2f6d") (set! (.-lineWidth ctx) (max 2 (* zoom 2)))
-          (set! (.-lineJoin ctx) "round") (.beginPath ctx)
-          (doseq [[index point] (map-indexed vector points)]
-            (let [px (+ margin (* (+ (:x point) 0.5) cell)) py (+ margin (* (+ (:y point) 0.5) cell))]
-              (if (zero? index) (.moveTo ctx px py) (.lineTo ctx px py))))
-          (.stroke ctx))))))
+      (set! (.-strokeStyle ctx) "#ff2f6d")
+      (set! (.-fillStyle ctx) "#ff2f6d")
+      (set! (.-lineWidth ctx) (max 2 (* zoom 2)))
+      (set! (.-lineJoin ctx) "round")
+      (draw-route! ctx pattern selected-region route-step cell))))
 
 (defn pattern-canvas []
   (let [node (atom nil) drag (atom nil)]
