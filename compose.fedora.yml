@@ -1,0 +1,25 @@
+services:
+  prolog:
+    ports: !override []
+    restart: unless-stopped
+    logging: &bounded-logs
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    ports: !override
+      - "127.0.0.1:8001:8000"
+    volumes: !override
+      - ./palettes:/palettes:ro,Z
+    restart: unless-stopped
+    logging: *bounded-logs
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:3001:80"
+    environment:
+      PUBLIC_API_URL: /api
+    restart: unless-stopped
+    logging: *bounded-logs
